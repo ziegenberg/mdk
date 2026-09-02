@@ -64,7 +64,8 @@ class CI(object):
         logger.setLevel(logging.WARNING)
 
         # Loads the jenkins object.
-        self._jenkins = jenkins.Jenkins(self.url, requester=CrumbRequester(baseurl=self.url))
+        # max_retries: the server drops idle connections between polls, reconnect.
+        self._jenkins = jenkins.Jenkins(self.url, requester=CrumbRequester(baseurl=self.url, max_retries=3))
 
     def precheckRemoteBranch(self, remote, branch, integrateto, issue=None):
         """Runs the precheck job and returns the outcome"""
