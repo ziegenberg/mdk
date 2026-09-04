@@ -31,10 +31,12 @@ import logging
 import zipfile
 import re
 import shutil
+from math import floor
+from pathlib import Path
 from tempfile import gettempdir
 from .config import Conf
 from . import tools
-from math import floor
+from .paths import ComponentResolver
 
 C = Conf()
 
@@ -278,15 +280,90 @@ class PluginManager(object):
         return subtypes
 
     @classmethod
+    def _getPluginTypeFromComponents(cls, t, M):
+        """Return the relative path to a plugin type from lib/components.json.
+
+        On modern versions of Moodle the canonical location of plugin types is
+        defined in lib/components.json. This is the only source of truth that
+        reflects the public/ directory which was introduced in Moodle 5.1.
+
+        Returns None when the file is missing, cannot be read, or the plugin type
+        is not declared in it.
+        """
+        componentsfile = os.path.join(M.get('path'), 'lib', 'components.json')
+        if not os.path.isfile(componentsfile):
+            return None
+
+        try:
+            with open(componentsfile, 'r') as f:
+                data = json.load(f)
+        except (ValueError, OSError):
+            return None
+        if not isinstance(data, dict):
+            return None
+
+        plugintypes = data.get('plugintypes')
+        if not isinstance(plugintypes, dict):
+            return None
+
+        path = plugintypes.get(t)
+        if not path or not isinstance(path, str):
+            return None
+
+        # The components.json paths always reference the default admin directory.
+        # Rewrite it when the instance uses a custom one, replicating the {admin}
+        # placeholder handling of the static tables below.
+        admin = M.get('admin', 'admin') or 'admin'
+        if admin != 'admin':
+            if path.startswith('public/admin'):
+                path = 'public/%s%s' % (admin, path[len('public/admin'):])
+            elif path.startswith('admin'):
+                path = '%s%s' % (admin, path[len('admin'):])
+
+        return path
+
+    @classmethod
+    def _getSubpluginTypeFromResolver(cls, t, M):
+        """Return the relative path to a subplugin type from db/subplugins.json.
+
+        Since Moodle 5.1 the subplugins are declared in a db/subplugins.json file
+        rather than in PHP, and their paths are relative to a plugin that may live
+        under the public/ directory. We rely on the shared ComponentResolver so the
+        inclusion of the public/ prefix stays consistent with the rest of the
+        codebase. Returns None when no declaration can be found.
+        """
+        # The resolver requires lib/components.json to exist and would raise when
+        # it is missing, so short-circuit to skip the extra work on older
+        # instances which never have it.
+        if not os.path.isfile(os.path.join(M.get('path'), 'lib', 'components.json')):
+            return None
+
+        try:
+            resolver = ComponentResolver(Path(M.get('path')), admin=M.get('admin', 'admin') or 'admin')
+            return str(resolver.subplugintypes[t])
+        except (KeyError, ValueError, OSError):
+            # Expected failure modes: the subplugin type is not declared,
+            # components.json is malformed, or a plugin directory is missing
+            # from the checkout. Fall back to the legacy resolution. Any other
+            # exception is a genuine bug and should surface.
+            return None
+
+    @classmethod
     def getTypeDirectory(cls, t, M=None):
         """Returns the path to the plugin type directory. If M is passed, the full path is returned."""
-        path = cls._pluginTypesPath.get(t, False)
+        path = False
+
+        if M:
+            path = cls._getPluginTypeFromComponents(t, M) or False
+        if not path and M:
+            path = cls._getSubpluginTypeFromResolver(t, M) or False
         if not path:
-            if M:
+            path = cls._pluginTypesPath.get(t, False)
+            if not path and M:
                 subtypes = cls.getSubtypes(M)
                 path = subtypes.get(t, False)
-            if not path:
-                raise ValueError('Unknown plugin or subplugin type')
+                if not path:
+                    raise ValueError('Unknown plugin or subplugin type')
 
         if M:
             if t == 'theme':
