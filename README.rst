@@ -7,7 +7,7 @@ Requirements
 ============
 
 - Linux or Mac OS
-- Python 3.6
+- Python 3.9 or greater
 - MySQL, MariaDB or PostgreSQL
 - Git v1.7.7 or greater
 

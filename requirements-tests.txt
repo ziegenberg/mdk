@@ -1,0 +1,4 @@
+# Development dependencies to run the MDK test suite.
+pytest>=7
+# Needed transitively: mdk.moodle imports mdk.jira, which imports requests.
+requests

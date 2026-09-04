@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moodle-sdk"
+description = "Moodle Development Kit"
+readme = "README.rst"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.9"
+authors = [
+    { name = "Frédéric Massart", email = "fred@fmcorz.net" },
+]
+keywords = ["mdk", "moodle", "moodle-sdk"]
+classifiers = [
+    "Development Status :: 6 - Mature",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Education",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "keyring>=3.5",
+    "jenkinsapi>=0.3.2",
+    "mysqlclient>=1.4.5",
+    "psycopg2>=2.4.5",
+    "requests>2.3.0",
+    "watchdog>=0.8.0",
+    "pyodbc>=4.0.21",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/FMCorz/mdk"
+
+[project.scripts]
+mdk = "mdk.__main__:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "mdk.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["mdk*"]
+
+[tool.setuptools.package-data]
+mdk = ["config-dist.json", "scripts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
