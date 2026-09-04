@@ -100,6 +100,28 @@ class TestPublicDirectoryResolution:
         assert PluginManager.getTypeDirectory('assignsubmission', M) == expected
         assert PluginManager.hasPlugin(PluginObject('assignsubmission_demo'), M) is False
 
+    def test_unexpected_resolver_error_surfaces(self, instance, monkeypatch):
+        plugintypes = {
+            'mod': 'public/mod',
+            'editor': 'public/lib/editor',
+            'local': 'public/local',
+            'tool': 'public/admin/tool',
+        }
+        M = instance(plugintypes, subsystems={'admin': 'admin', 'lib': 'lib'})
+        for rel in plugintypes.values():
+            _make_dirs(M.path, rel)
+
+        class _BoomResolver:
+            @property
+            def subplugintypes(self):
+                raise RuntimeError('unexpected')
+
+        # Only the documented failure modes are caught; a genuine bug is not
+        # swallowed by the subplugin resolution fallback.
+        monkeypatch.setattr('mdk.plugins.ComponentResolver', lambda *a, **k: _BoomResolver())
+        with pytest.raises(RuntimeError):
+            PluginManager.getTypeDirectory('assignfoo', M)
+
     def test_all_relative_return_unchanged(self, instance):
         M = instance({'mod': 'public/mod'})
         assert PluginManager.getTypeDirectory('mod') == '/mod'

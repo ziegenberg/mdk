@@ -332,10 +332,20 @@ class PluginManager(object):
         inclusion of the public/ prefix stays consistent with the rest of the
         codebase. Returns None when no declaration can be found.
         """
+        # The resolver requires lib/components.json to exist and would raise when
+        # it is missing, so short-circuit to skip the extra work on older
+        # instances which never have it.
+        if not os.path.isfile(os.path.join(M.get('path'), 'lib', 'components.json')):
+            return None
+
         try:
             resolver = ComponentResolver(Path(M.get('path')), admin=M.get('admin', 'admin') or 'admin')
             return str(resolver.subplugintypes[t])
-        except Exception:
+        except (KeyError, ValueError, OSError):
+            # Expected failure modes: the subplugin type is not declared,
+            # components.json is malformed, or a plugin directory is missing
+            # from the checkout. Fall back to the legacy resolution. Any other
+            # exception is a genuine bug and should surface.
             return None
 
     @classmethod
